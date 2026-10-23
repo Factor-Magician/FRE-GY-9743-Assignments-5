@@ -1,0 +1,253 @@
+% !TEX program = xelatex
+% Assignment 5 - Implicit differentiation, valuation and first-order risk.
+\documentclass[11pt]{article}
+\usepackage[a4paper,top=1in,bottom=1in,left=1.1in,right=1.1in]{geometry}
+\usepackage{setspace}
+\setstretch{1.18}
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{2pt}
+\setlength{\emergencystretch}{1.5em}
+\usepackage{fontspec}
+\setmainfont{texgyreheros-regular.otf}[BoldFont=texgyreheros-bold.otf,ItalicFont=texgyreheros-italic.otf,BoldItalicFont=texgyreheros-bolditalic.otf]
+\setsansfont{texgyreheros-regular.otf}[BoldFont=texgyreheros-bold.otf]
+\usepackage{amsmath,amssymb,booktabs,array,tabularx}
+\usepackage{enumitem,xcolor,colortbl,titlesec,fancyhdr,float,caption}
+\usepackage[hidelinks]{hyperref}
+\definecolor{NYUviolet}{HTML}{57068C}
+\definecolor{NYUviolet2}{HTML}{8900E1}
+\definecolor{inkgrey}{HTML}{3A3A3A}
+\definecolor{rulegrey}{HTML}{B9B9B9}
+\definecolor{tablehead}{HTML}{ECE3F4}
+\hypersetup{colorlinks=true,linkcolor=NYUviolet,urlcolor=NYUviolet2,citecolor=NYUviolet,
+ pdftitle={Assignment 5: Implicit Differentiation and First-Order Risk},pdfauthor={Ziyi Yang}}
+\titleformat{\section}{\sffamily\Large\bfseries\color{NYUviolet}}{\thesection}{0.7em}{}[\vspace{2pt}{\color{rulegrey}\titlerule[0.8pt]}]
+\titleformat{\subsection}{\sffamily\large\bfseries\color{inkgrey}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+\titlespacing*{\subsection}{0pt}{10pt}{5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{15pt}
+\renewcommand{\headrulewidth}{0.6pt}
+\fancyhead[L]{\footnotesize\sffamily\color{inkgrey}Implicit Differentiation and Risk}
+\fancyhead[R]{\footnotesize\sffamily\color{inkgrey}FRE-GT-9743 -- Assignment 5}
+\fancyfoot[C]{\footnotesize\sffamily\color{inkgrey}\thepage}
+\setlist[itemize]{leftmargin=1.4em,itemsep=2pt,topsep=3pt,label=\textcolor{NYUviolet}{\textbullet}}
+\setlist[enumerate]{leftmargin=1.6em,itemsep=2pt,topsep=3pt}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\renewcommand{\arraystretch}{1.12}
+\newcommand{\keynote}[1]{\par\medskip\noindent\textbf{\sffamily\color{NYUviolet}Key result.}\enspace #1\par\medskip}
+\newcommand{\focus}[1]{\noindent{\small\itshape\color{inkgrey}\textbf{Question focus.} #1}\par\medskip}
+\numberwithin{equation}{section}
+\captionsetup{font=small,labelfont={bf,sf,color=NYUviolet},labelsep=period}
+
+\begin{document}
+\setlength{\abovedisplayskip}{7pt}
+\setlength{\belowdisplayskip}{7pt}
+\setlength{\jot}{2pt}
+\hypersetup{pageanchor=false}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\centering
+\vspace*{0.55in}
+{\color{NYUviolet}\rule{\textwidth}{2.2pt}}\\[10pt]
+{\sffamily\fontsize{16}{19}\selectfont\color{inkgrey}Fixed Income Analysis Report}\\[14pt]
+{\sffamily\bfseries\fontsize{25}{30}\selectfont\color{NYUviolet}
+Implicit Differentiation and\\[3pt]First-Order Risk}\\[14pt]
+{\sffamily\fontsize{15}{18}\selectfont\color{inkgrey}
+Calibration Jacobians, Volatility Parameters,\\[3pt]
+Discount-Factor Gradients and Cashflow Valuation}\\[10pt]
+{\color{NYUviolet}\rule{\textwidth}{2.2pt}}\\[26pt]
+\begin{minipage}{0.88\textwidth}
+\centering\itshape\small\color{inkgrey}
+This report solves the three written questions in Assignment 5 and documents
+the completed valuation-engine implementation. It connects Newton calibration
+to the implicit-function theorem, applies the framework to a three-parameter
+implied-volatility smile, and verifies analytic curve-node risk for a fixed
+accrued cashflow on a referenced instantaneous-forward-rate model.
+\end{minipage}\\[34pt]
+\begin{tabular}{rl}
+\sffamily\bfseries Author & Ziyi Yang\\[3pt]
+\sffamily\bfseries Course & FRE-GT-9743\\[3pt]
+\sffamily\bfseries Source problem & Jianing (Jay) Yao, Assignment 5\\[3pt]
+ & October 15, 2026
+\end{tabular}
+\vfill
+{\sffamily\small\color{inkgrey}Assignment 5 \quad\textbullet\quad Calibration and Analytic Risk}\\[2pt]
+{\color{NYUviolet}\rule{\textwidth}{1.2pt}}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+
+\begin{center}{\sffamily\large\bfseries\color{NYUviolet}Abstract}\end{center}
+\begin{quote}\small\itshape
+Calibration is a root-finding problem, while calibration risk is an implicit
+differentiation problem. A nonsingular pricing Jacobian maps market-price
+changes into model-parameter changes. For a volatility smile, this Jacobian is
+the product of option vega and the interpolator's parameter gradient. In the
+programming component, discount factors are exponentials of integrated
+instantaneous forward rates. Their node gradients are propagated through a
+referenced funding curve with the product rule and then scaled by the cashflow
+amount to obtain exact first-order PV risk.
+\end{quote}
+\vspace{4pt}
+{\small\noindent\textbf{\sffamily Keywords:}\;Implicit function \textbullet\; Newton calibration
+\textbullet\; Volatility smile \textbullet\; IFR curve \textbullet\; First-order risk}
+\vspace{8pt}{\color{rulegrey}\hrule}
+\setcounter{tocdepth}{1}
+\renewcommand{\contentsname}{\sffamily\large\bfseries\color{NYUviolet}Contents}
+{\small\tableofcontents}
+{\color{rulegrey}\hrule}
+\clearpage
+
+\section{Q1: Solving the Calibration Equations}
+\focus{Give a general recipe for recovering the implied parameter vector $X^I$ from $V(X^I)=X^M$.}
+
+Define the residual
+\begin{equation}
+R(X^I)=V(X^I)-X^M.
+\end{equation}
+Calibration seeks a root, $R(X^I)=0$. Starting from a reasonable guess
+$X^I_0$, calculate the model Jacobian
+\begin{equation}
+J_V(X^I_n)=\left.\frac{\partial V}{\partial X^I}\right|_{X^I_n}
+\end{equation}
+and solve the Newton system
+\begin{equation}
+J_V(X^I_n)\,\Delta X^I_n=X^M-V(X^I_n).
+\end{equation}
+Update $X^I_{n+1}=X^I_n+\Delta X^I_n$ and repeat until both the pricing
+residual and the parameter step satisfy the chosen tolerances. A damped step
+or line search can be used when a full Newton step is unstable. Numerically,
+the linear system should be solved directly rather than by forming an explicit
+matrix inverse. Bounds or a reparameterization may be added when admissibility,
+such as positive volatility, must be enforced.
+
+Local uniqueness and a stable Newton step require a square, nonsingular
+Jacobian near the solution. A poorly conditioned Jacobian signals that the
+market observations do not identify the model parameters reliably.
+
+\keynote{Calibration consists of defining price residuals, evaluating the pricing Jacobian, solving a linear Newton system, updating the parameters and checking convergence.}
+
+\section{Q2: Sensitivity of Implied Parameters}
+\focus{Calculate $dX^I/dX^M$ at the calibrated optimum.}
+
+At the optimum, the calibration identity is
+\begin{equation}
+V(X^I(X^M))=X^M.
+\end{equation}
+Taking total differentials gives
+\begin{equation}
+J_V\,dX^I=dX^M.
+\end{equation}
+Provided $J_V$ is nonsingular, the implicit-function theorem yields
+\begin{equation}
+\boxed{\frac{dX^I}{dX^M}=J_V^{-1}.}
+\end{equation}
+Each column gives the response of all implied parameters to a unit change in
+one market quote. In implementation, a particular shock is obtained by
+solving $J_VdX^I=dX^M$ rather than explicitly inverting $J_V$.
+
+For a downstream quantity $G(X^I)$, the chain rule gives market-quote risk:
+\begin{equation}
+\boxed{\frac{dG}{dX^M}=\frac{\partial G}{\partial X^I}J_V^{-1}.}
+\end{equation}
+
+\section{Q3: Three-Point Implied-Volatility Calibration}
+\subsection{Calibration from option prices}
+Let $B_i(\sigma)$ denote the undiscounted European option pricing function at
+strike $K_i$. The three parameters $\theta\in\mathbb{R}^3$ are determined by
+\begin{equation}
+B_i\!\left(\sigma(K_i;\theta)\right)=P_i,
+\qquad i=1,2,3.
+\end{equation}
+Equivalently, solve the three residual equations
+\begin{equation}
+R_i(\theta)=B_i\!\left(\sigma(K_i;\theta)\right)-P_i=0
+\end{equation}
+with the Newton procedure from Q1. One may also invert each option price to an
+implied volatility first and then fit the three interpolator parameters; the
+direct price-space formulation makes the market-price sensitivity immediate.
+
+The calibration Jacobian is
+\begin{equation}
+J_{ij}=\frac{\partial P_i}{\partial\theta_j}
+=\underbrace{\frac{\partial B_i}{\partial\sigma_i}}_{\mathrm{Vega}_i}
+\frac{\partial\sigma(K_i;\theta)}{\partial\theta_j}.
+\end{equation}
+Therefore
+\begin{equation}
+\frac{d\theta}{dP}=J^{-1},
+\qquad
+\boxed{\frac{d\sigma(K)}{dP}
+=\nabla_\theta\sigma(K;\theta)^\mathsf{T}J^{-1}.}
+\end{equation}
+The direct sensitivity of the interpolated volatility to its parameters is
+simply $d\sigma(K)=\nabla_\theta\sigma(K;\theta)^\mathsf{T}d\theta$.
+
+\subsection{Trader-interpretable parameters}
+A natural three-parameter representation is level, skew and curvature:
+\begin{align}
+\theta_{\mathrm{ATM}}&=\sigma(K_{\mathrm{ATM}}),\\
+\theta_{\mathrm{RR}}&=\sigma(K_3)-\sigma(K_1),\\
+\theta_{\mathrm{BF}}&=\frac{\sigma(K_1)+\sigma(K_3)}{2}-\sigma(K_{\mathrm{ATM}}).
+\end{align}
+The first parameter moves the smile vertically, the risk reversal tilts the
+two wings relative to one another, and the butterfly changes their average
+height relative to ATM. This basis makes sensitivities easier to discuss than
+sensitivities to three opaque polynomial coefficients.
+
+\section{Completed Valuation Engine}
+\subsection{Discount-factor gradient}
+For one instantaneous-forward-rate component,
+\begin{equation}
+D(T)=\exp\left(-\int_0^T f(u)\,du\right).
+\end{equation}
+If $w_i(T)$ is the derivative of the integrated interpolant with respect to
+node ordinate $f_i$, then
+\begin{equation}
+\boxed{\frac{\partial D(T)}{\partial f_i}=-D(T)w_i(T).}
+\end{equation}
+For the referenced funding curve
+$D_{\mathrm{fund}}=D_{\mathrm{spread}}D_{\mathrm{SOFR}}$, the implementation
+walks the reference chain and applies the product rule. Each component block
+receives its local derivative multiplied by every other local discount factor.
+The supplied \texttt{scaler} multiplies only the new contribution, while
+\texttt{accumulate} controls replacement or addition.
+
+\subsection{Fixed accrued cashflow}
+For signed notional $N$ and accrual fraction $\alpha$, the amount is
+$C=N\alpha$. A future payment has
+\begin{equation}
+PV=CD(T_p),\qquad \nabla PV=C\nabla D(T_p).
+\end{equation}
+A payment today has $PV=Cash=C$ and zero curve risk. A past payment has zero
+PV, cash and risk.
+
+\begin{table}[H]
+\centering
+\caption{Verified Assignment 5 outputs}
+\small
+\begin{tabularx}{\textwidth}{@{}L{4.1cm}Y@{}}
+\toprule\rowcolor{tablehead}\textbf{Quantity}&\textbf{Result}\\\midrule
+Cashflow PV & $245{,}870.910580$\\
+Cash today & $0$\\
+SOFR raw gradient & $(-60{,}625.703979,-123{,}272.264756,0)$\\
+Funding-spread raw gradient & $(-121{,}925.026890,-61{,}972.941845)$\\
+One-basis-point report & Raw gradients multiplied by $10^{-4}$, preserving sign\\
+\bottomrule
+\end{tabularx}
+\end{table}
+The zero in the third SOFR node is expected because its piecewise-constant
+segment begins after the payment date.
+
+\section{Conclusion}
+The same Jacobian that drives Newton calibration also maps market shocks into
+implied-parameter shocks. In the option example, vega connects price space to
+volatility space and a level--skew--curvature parameterization makes the
+resulting risk intuitive. The completed library applies the same derivative
+discipline to yield curves: differentiate the integrated IFR, propagate the
+gradient through referenced discount factors, and scale it by the contractual
+cashflow. The executed notebook confirms the PV and every reported risk block.
+
+\end{document}

@@ -13,19 +13,43 @@ from fixedincomelib.valuation import (
 class ValuationEngineProductFixedAccrued(ValuationEngineProduct):
     def __init__(self, model, valuation_parameters_collection, product, request):
         super().__init__(model, valuation_parameters_collection, product, request)
-        # TODO 
-        raise NotImplementedError("TODO 3")
+        funding_parameter = valuation_parameters_collection.get_vp_from_build_method_collection(
+            FundingIndexParameter._vp_type,
+        )
+        self.funding_index_ = funding_parameter.get_funding_index(product.currency)
 
     def calculate_value(self) -> None:
-        # TODO Set self.value_ and self.cash_ for past, same-day, and future payments.
-        raise NotImplementedError("TODO 4")
+        product = self.product_
+        self.value_ = self.cash_ = 0.0
+        if product.payment_date < self.value_date:
+            return
+
+        amount = product.notional * product.accrued
+        if product.payment_date == self.value_date:
+            self.value_ = self.cash_ = amount
+        else:
+            self.value_ = amount * self.model.discount_factor(
+                self.funding_index_, product.payment_date
+            )
 
     def calculate_risk(
         self, gradient: list[np.ndarray], scaler: float = 1.0, accumulate: bool = False,
     ) -> None:
-        # TODO Write product risk using the model's DF gradient; non-future payments have zero risk.
-        # Apply scaler to the new contribution; overwrite or add according to accumulate.
-        raise NotImplementedError("TODO 5")
+        product = self.product_
+        if product.payment_date <= self.value_date:
+            self.model.resize_gradient(gradient)
+            if not accumulate:
+                for block in gradient:
+                    block.fill(0.0)
+            return
+
+        self.model.discount_factor_gradient_wrt_state(
+            self.funding_index_,
+            product.payment_date,
+            gradient,
+            scaler=scaler * product.notional * product.accrued,
+            accumulate=accumulate,
+        )
 
 
 ValuationEngineProductRegistry().register(
